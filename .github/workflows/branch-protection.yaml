@@ -1,0 +1,28 @@
+Name: Validate PR Branch rules
+
+on: 
+  pull_request:
+    branches:
+      - devel
+      - stage
+
+jobs:
+  validate-pr-branches:
+    name: validate-prs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce devel rules
+        if: github.base_ref == 'devel'
+        run: |
+          if [[ ${{ github.head_ref }} != feature/* && ${{ github.head_ref }} != bugfix/* ]]; then
+            echo "branch must be called feature/ or bugfix/"
+            exit 1
+          fi 
+          
+      - name: Enforce devel rules
+        if: github.base_ref == 'stage'
+        run: |
+          if [[ ${{ github.head_ref }} != devel  ]]; then
+            echo "only prs from devel"
+            exit 1
+          fi 
