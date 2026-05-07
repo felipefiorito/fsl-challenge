@@ -1,4 +1,4 @@
-Name: Validate PR Branch rules
+name: Validate PR Branch rules
 
 on: 
   pull_request:
