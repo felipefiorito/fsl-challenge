@@ -32,7 +32,6 @@ jobs:
   deploy-to-devel:
     name: 'Deploy Terraform to devel' 
     runs-on: ubuntu-latest
-    needs: AppBuild
     if: github.ref == 'refs/heads/devel'
     environment: devel
 
@@ -102,7 +101,6 @@ jobs:
   deploy-to-stage:
     name: 'Deploy Terraform to stage' 
     runs-on: ubuntu-latest
-    needs: AppBuild
     if: github.ref == 'refs/heads/stage'
     environment: stage
 
