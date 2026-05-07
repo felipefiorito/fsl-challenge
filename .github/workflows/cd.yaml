@@ -1,0 +1,159 @@
+name: 'CD Pipeline'
+
+on:
+  push:
+    branches: [ "devel", "stage" ]
+
+
+jobs:
+  AppBuild:
+    name: 'AppBuild'
+    runs-on: ubuntu-latest
+    environment: devel
+
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js 15
+      uses: actions/setup-node@v4
+      with:
+        node-version: 15
+        cache: 'npm'
+    - name: Install
+      run: npm install
+    - name: Build
+      run: npm run build
+    - name: Push to registry
+      uses: actions/upload-artifact@v4
+      with: 
+        name: build-$${{ github.sha }}
+        path: build/
+        retention-days: 1   
+    
+    
+    
+  deploy-to-devel:
+    name: 'Deploy Terraform to devel' 
+    runs-on: ubuntu-latest
+    needs: AppBuild
+    if: github.ref == 'refs/heads/devel'
+    environment: devel
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: build-${{ github.sha }}
+        path: build/
+
+    - name: Setup AWS
+      uses: aws-actions/configure-aws-credentials@v6.1.0
+      with:
+        aws-access-key-id: $${{ secrets.AWS_ACCESS_KEY }}
+        aws-secret-access-key: $${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_wrapper: false
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      working-directory: terraform
+      run: terraform init -var-file="environments/devel.tfvars"
+
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      working-directory: terraform
+      run: terraform plan -var-file="environments/devel.tfvars"
+
+      # On push to "devel", build or change infrastructure according to Terraform configuration files
+      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    - name: Terraform Apply
+      working-directory: terraform
+      run: terraform apply -auto-approve -var-file="environments/devel.tfvars"
+    
+    - name: Terraform Otputs
+      working-directory: terraform
+      run: |
+        echo "BUCKET_NAME=$(terraform output -raw app_bucket) >> $GITHUB_ENV"
+        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url) >> $GITHUB_ENV"
+
+    - name: Sync s3
+      run: |
+        aws s3 sync build/ s3://${{ env.BUCKET_NAME }}
+    
+    - name: Print CLOUDFRONT_URL
+      run: | 
+        echo ${{ env.CLOUDFRONT_URL }}
+  
+  deploy-to-stage:
+    name: 'Deploy Terraform to stage' 
+    runs-on: ubuntu-latest
+    needs: AppBuild
+    if: github.ref == 'refs/heads/stage'
+    environment: stage
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: build-${{ github.sha }}
+        path: build/
+
+    - name: Setup AWS
+      uses: aws-actions/configure-aws-credentials@v6.1.0
+      with:
+        aws-access-key-id: $${{ secrets.AWS_ACCESS_KEY }}
+        aws-secret-access-key: $${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_wrapper: false
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      working-directory: terraform
+      run: terraform init -var-file="environments/stage.tfvars"
+
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      working-directory: terraform
+      run: terraform plan -var-file="environments/stage.tfvars"
+
+      # On push to "devel", build or change infrastructure according to Terraform configuration files
+      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    - name: Terraform Apply
+      working-directory: terraform
+      run: terraform apply -auto-approve -var-file="environments/stage.tfvars"
+    
+    - name: Terraform Otputs
+      working-directory: terraform
+      run: |
+        echo "BUCKET_NAME=$(terraform output -raw app_bucket) >> $GITHUB_ENV"
+        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url) >> $GITHUB_ENV"
+
+    - name: Sync s3
+      run: |
+        aws s3 sync build/ s3://${{ env.BUCKET_NAME }}
+    
+    - name: Print CLOUDFRONT_URL
+      run: | 
+        echo ${{ env.CLOUDFRONT_URL }}
