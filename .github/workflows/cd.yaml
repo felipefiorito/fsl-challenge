@@ -87,8 +87,8 @@ jobs:
     - name: Terraform Otputs
       working-directory: terraform
       run: |
-        echo "BUCKET_NAME=$(terraform output -raw app_bucket) >> $GITHUB_ENV"
-        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url) >> $GITHUB_ENV"
+        echo "BUCKET_NAME=$(terraform output -raw app_bucket)" >> $GITHUB_ENV
+        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url)" >> $GITHUB_ENV
 
     - name: Sync s3
       run: |
@@ -151,8 +151,8 @@ jobs:
     - name: Terraform Otputs
       working-directory: terraform
       run: |
-        echo "BUCKET_NAME=$(terraform output -raw app_bucket) >> $GITHUB_ENV"
-        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url) >> $GITHUB_ENV"
+        echo "BUCKET_NAME=$(terraform output -raw app_bucket)" >> $GITHUB_ENV
+        echo "CLOUDFRONT_URL=$(terraform output -raw cloufront_url)" >> $GITHUB_ENV
 
     - name: Sync s3
       run: |
